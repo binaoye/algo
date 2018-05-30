@@ -1,4 +1,5 @@
 import sys
+import time
 
 class train:
     def __init__(self, x, y, price, xtime, ytime):
@@ -7,8 +8,7 @@ class train:
         self.price = price
         self.xtime = xtime
         self.ytime = ytime
-    def __str__(self):
-        return str(self.x.num) + '到' + str(self.y.num) + '价格为' + str(self.price) + '开点' + self.xtime + '到达' + self.ytime
+
 class city:
     def __init__(self, num):
         self.num = num
@@ -20,7 +20,7 @@ class city:
 
         self.trains.append(c)
         if c.y not in self.next:
-            print(self.num , ' add next', c.y.num)
+            # print(self.num , ' add next', c.y.num)
             self.next.append(c.y)
 
     # 获取到某城市的车次
@@ -28,8 +28,13 @@ class city:
         result = []
         if c in self.next:
             for i in self.trains:
-                if i.y == c and timebigger(i.xtime, time):
-                    result.append(i)
+                if i.y == c:
+                    if timebigger(i.xtime, time):
+                        result.append(i)
+                    elif self.num == 1:
+                        if time == "00:00":
+                            result.append(i)
+
         return result
     def __str__(self):
         return 'City No:', self.num
@@ -46,14 +51,18 @@ class path:
 # 路线图
 class cityGraph:
     def __init__(self):
-        print("----")
-        self.citys = [city(1)]
-        self.cityids = [1]
+        # print("----")
+        self.citys = []
+        self.cityids = []
+        self.d = {}
+        self.ids = {}
+        self.addCity(1)
     # 添加城市到图中
     def addCity(self, num):
         startCity = city(num)
         self.citys.append(startCity)
         self.cityids.append(startCity.num)
+        self.ids[str(num)] = startCity
         return startCity
 
     # 根据id从图中查找城市
@@ -62,75 +71,149 @@ class cityGraph:
             ct = self.addCity(num)
             return ct
         else:
-            for x in range(len(self.cityids)):
-                if self.cityids[x] == num:
-                    return self.citys[x]
+            return self.ids[str(num)]
 
     # 按行读入图
     def cityFromLine(self, line):
         spl = line.split(" ")
-        print(line)
+        # print(line)
         # 处理城市
         startCity = self.getCity(int(spl[0]))
         endCity = self.getCity(int(spl[1]))
         # 处理路线
         newtrain = train(startCity, endCity, int(spl[2]), spl[3], spl[4])
         startCity.addTrain(newtrain)
-    # 判断是否存在路线, 递归
-    def getFromTo(self, start, end, time):
-        if len(start.next) == 0:
-            return False
-        # 递归条件：直达
-        if end in start.next:
-            for train in start.trains:
-                if (train.y == end) and (timebigger(train.xtime, time)):
-                    return True
-        # 查找下一站路线
-        for c in start.next:
-            ntrain = start.getCityTrain(c, time)
-            if ntrain:
-                if self.getFromTo(c, end, ntrain[0].ytime):
-                    return True
-            return False
-        return False
+
     # 查找路线，广度遍历
     def searchPath(self, start, end, time):
         result = path(start, end)
-        print('当前起点：', start.num, ' 终点：', end.num)
+        key = str(start.num) + '_' + str(end.num) + '_' + time
+        # print('当前起点：', start.num, ' 终点：', end.num)
         # 递归出口，返回路线列表与节点顺序列表，数据结构为以起点为key的map
         if len(start.next) == 0:
             return result
         ncity = []
         ntrain = []
         if end in start.next:
-            print(start.num,'直达',end.num)
             xtrain = start.getCityTrain(end, time)
-            if len(xtrain) > 0:
+            # print(start.num, '直达', end.num, xtrain.__len__())
+            for x in xtrain:
                 ncity.append([end])
-                ntrain.append([xtrain[0]])
-
+                ntrain.append([x])
         # 回溯
         for ct in start.next:
             if ct != end:
                 xtrain = start.getCityTrain(ct, time)
-                answer = self.searchPath(ct, end, xtrain[0].ytime)
+                # 下一跳的列车选择时，必须保证如果错过还有别的路线选择
                 # 合并结果集，不包含当前节点，只包含之后的节点
-                if answer.citylist.__len__() >= 1:
-                    print('起点:', ct.num, '终点', end.num, '找到路径', answer.citylist)
-                    for i in range(answer.citylist.__len__()):
-                        x = answer.citylist[i]
-                        x.insert(0, ct)
-                        y = answer.trainlist[i]
-                        y.insert(0, xtrain[0])
-                        ncity.append(x)
-                        ntrain.append(y)
+                for z in xtrain:
+                    if key in self.d.keys():
+                        answer = self.d[key]
+                    else:
+                        answer = self.searchPath(ct, end, z.ytime)
+                    if answer.citylist.__len__() >= 1:
+                        # print('起点:', ct.num, '终点', end.num, '找到路径', answer.citylist)
+                        for i in range(answer.citylist.__len__()):
+                            # print('附加', start.num, '到', ct.num, '时间', z.xtime)
+                            x = answer.citylist[i]
+                            shx = []
+                            shx = shx + x
+                            shx.insert(0, ct)
+                            y = answer.trainlist[i]
+                            shy = []
+                            shy = shy + y
+                            shy.insert(0, z)
+                            ncity.append(shx)
+                            ntrain.append(shy)
         result.trainlist = ntrain
         result.citylist = ncity
+        # 结果先存起来
+
+        self.d[key] = result
+        return result
+    def timeAdd(self, time):
+        tspl = time.split(':')
+        h = 0
+        m = 0
+        if int(tspl[1]) == 30:
+            h = int(tspl[0]) + 1
+            m = 0
+        else:
+            h = int(tspl[0])
+            m = 30
+        return str(h) + ':' + str(m)
+
+
+    def choosePath(self, primaryResult, start, end):
+        # 先选择删除最晚出发的一条路线
+        # print('剪枝前路线数量', primaryResult.trainlist.__len__())
+        starttime = "00:00"
+        ntrain = primaryResult.trainlist
+        ncity = primaryResult.citylist
+        result = path(start, end)
+        for i in range(len(ntrain)):
+            # print('比较时间', ntrain[i][0].xtime, ncity[i][0].num)
+            if timebigger(ntrain[i][0].xtime, starttime):
+                starttime = ntrain[i][0].xtime
+            elif ntrain[i][0].xtime == starttime:
+                starttime = ntrain[i][0].xtime
+        # print('删除的出发时间为', starttime)
+        # 删除最晚的路线
+        cityresult = []
+        trainresult = []
+        while ntrain:
+            tr = ntrain.pop()
+            ct = ncity.pop()
+            if tr[0].xtime != starttime:
+                cityresult.append(ct)
+                trainresult.append(tr)
+        # print('删除后的路线数', cityresult.__len__())
+        result.trainlist = trainresult
+        result.citylist  = cityresult
+        dtrain = []
+        dcity = []
+        # 遍历所有的结果集
+        l = len(result.trainlist)
+        for i in range(l):
+            # 对于每一趟车，判断如果没赶上有更多车可以补救
+            flag = True
+            # print("*****************")
+            for t in result.trainlist[i]:
+                # print('---------------')
+                if self.checkPath(t.x, end, t.xtime):
+                    # print(t.x.num, t.y.num, t.xtime, '无法换乘')
+                    flag = False
+            if flag:
+                dtrain.append(result.trainlist[i])
+                dcity.append(result.citylist[i])
+        result.trainlist = dtrain
+        result.citylist = dcity
+        # print('剪枝后路线数量', dtrain.__len__())
         return result
 
+    def checkPath(self, start, end, time):
+        key = str(start.num) + '_' + str(end.num) + '_' + time
+        # print("check ", key)
+        if key in self.d.keys():
+            answer = self.d[key]
+        else:
+            answer = self.searchPath(start, end, time)
+        for t in answer.trainlist:
+            # print('比较', t[0].xtime, time, timebigger(t[0].xtime, time))
+            if timebigger(t[0].xtime, time):
+                return False
+        return True
 
-
-
+    def findCheapest(self, r):
+        min_price = []
+        l = len(r.citylist)
+        for i in range(l):
+            for t in r.trainlist:
+                tot = 0
+                for ft in t:
+                    tot += ft.price
+                min_price.append(tot)
+        return min(min_price)
 
 def timebigger(left, right):
     lspl = left.split(":")
@@ -141,26 +224,25 @@ def timebigger(left, right):
 
 
 if __name__ == "__main__":
+    time_start = time.time()
     # 读取数据
     n, m = map(int, sys.stdin.readline().strip().split())
     graph = cityGraph()
-    print('m', m)
+    lines = []
+    # print('m', m)
     for i in range(m):
-        line = sys.stdin.readline().strip()
+        lines.append(sys.stdin.readline().strip())
+    for line in lines:
         graph.cityFromLine(line)
     city1 = graph.getCity(1)
-    city3 = graph.getCity(3)
-    ans = graph.getFromTo(city1, city3, "10:00")
-    # print(ans)
-    # for x in city1.next:
-    #     print(x.num)
-
+    city3 = graph.getCity(n)
     answer = graph.searchPath(city1, city3, "00:00")
-    for i in answer.citylist:
-        print("搜索结果")
-        for z in i:
-            print(z.num)
-    for f in answer.trainlist:
-        print("车次情况")
-        for x in f:
-            print(str(x))
+    result = graph.choosePath(answer, city1, city3)
+
+    if len(result.citylist) >= 1:
+        print(graph.findCheapest(result))
+    else:
+        print(-1)
+
+    time_end = time.time()
+    print('totally cost', time_end - time_start)
