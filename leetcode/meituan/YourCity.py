@@ -1,6 +1,6 @@
 import sys
 import time
-
+import copy
 class train:
     def __init__(self, x, y, price, xtime, ytime):
         self.x = x
@@ -87,7 +87,11 @@ class cityGraph:
     # 查找路线，广度遍历
     def searchPath(self, start, end, time):
         result = path(start, end)
-        key = str(start.num) + '_' + str(end.num) + '_' + time
+        key = "_".join([str(start.num), str(end.num), time])
+        # key = str(start.num) + '_' + str(end.num) + '_' + time
+        if key in self.d.keys():
+            answer = self.d[key]
+            return answer
         # print('当前起点：', start.num, ' 终点：', end.num)
         # 递归出口，返回路线列表与节点顺序列表，数据结构为以起点为key的map
         if len(start.next) == 0:
@@ -107,21 +111,18 @@ class cityGraph:
                 # 下一跳的列车选择时，必须保证如果错过还有别的路线选择
                 # 合并结果集，不包含当前节点，只包含之后的节点
                 for z in xtrain:
-                    if key in self.d.keys():
-                        answer = self.d[key]
+                    nkey = str(ct.num) + '_' + str(end.num) + '_' + z.ytime
+                    if nkey in self.d.keys():
+                        answer = self.d[nkey]
                     else:
                         answer = self.searchPath(ct, end, z.ytime)
                     if answer.citylist.__len__() >= 1:
                         # print('起点:', ct.num, '终点', end.num, '找到路径', answer.citylist)
                         for i in range(answer.citylist.__len__()):
                             # print('附加', start.num, '到', ct.num, '时间', z.xtime)
-                            x = answer.citylist[i]
-                            shx = []
-                            shx = shx + x
+                            shx = copy.copy(answer.citylist[i])
                             shx.insert(0, ct)
-                            y = answer.trainlist[i]
-                            shy = []
-                            shy = shy + y
+                            shy = copy.copy(answer.trainlist[i])
                             shy.insert(0, z)
                             ncity.append(shx)
                             ntrain.append(shy)
@@ -224,7 +225,6 @@ def timebigger(left, right):
 
 
 if __name__ == "__main__":
-    time_start = time.time()
     # 读取数据
     n, m = map(int, sys.stdin.readline().strip().split())
     graph = cityGraph()
@@ -234,6 +234,7 @@ if __name__ == "__main__":
         lines.append(sys.stdin.readline().strip())
     for line in lines:
         graph.cityFromLine(line)
+    start = time.time()
     city1 = graph.getCity(1)
     city3 = graph.getCity(n)
     answer = graph.searchPath(city1, city3, "00:00")
@@ -243,6 +244,4 @@ if __name__ == "__main__":
         print(graph.findCheapest(result))
     else:
         print(-1)
-
-    time_end = time.time()
-    print('totally cost', time_end - time_start)
+    stop = time.time()
