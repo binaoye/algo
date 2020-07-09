@@ -28,10 +28,6 @@ class Solution(object):
                 if mid == inorder[x]:
                     midindex = x
                     break
-            print("mid:", midindex)
-            print("left")
-            print(inorder[0:midindex])
-            print(postorder[0:midindex])
             leftans = self.buildTree(self, inorder[0:midindex], postorder[0:midindex])
             rightans = self.buildTree(self, inorder[midindex+1:], postorder[midindex:])
             root = TreeNode(mid)

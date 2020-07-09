@@ -1,16 +1,19 @@
 from leetcode.tree import printtree
 
+
 class TreeNode(object):
     def __init__(self, x):
         self.val = x
         self.left = None
         self.right = None
 
+
 class Queue(object):
     def __init__(self):
         self.stacka = []
         self.stackb = []
         self.queue = []
+
     def inqueue(self, node):
         if node:
             self.queue.append(node.val)
@@ -95,8 +98,25 @@ class Solution(object):
             ret.append(node.val)
             count = queue.queue.__len__()
         return ret
-
-
+    #
+    #                      5
+    #                    /   \
+    #                   /     \
+    #                  /       \
+    #                 /         \
+    #                /           \
+    #               /             \
+    #              /               \
+    #             /                 \
+    #          4                       8
+    #        /   \                   /   \
+    #       /     \                 /     \
+    #      /       \               /       \
+    #     /         \             /         \
+    #    11          N           13          4
+    #  /   \       /   \       /   \       /   \
+    # /     \     /     \     /     \     /     \
+    # 7     2     N     N     N     9     15    N
 
 
 
